@@ -152,7 +152,7 @@ function attachZoomHandlers(gs, syncOpts, prevCallbacks) {
           if (gs[j] == me) continue;
           gs[j].updateOptions( {
             dateWindow: range,
-            valueRange: yrange
+            valueRange: gs[j].yAxisRange()
           });
         }
         block = false;
