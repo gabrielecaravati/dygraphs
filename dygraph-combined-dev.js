@@ -464,53 +464,61 @@ DygraphOptions.prototype.getGlobalDefault_ = function(name) {
  * ("y", "y2") or the axis number (0, 1).
  */
 DygraphOptions.prototype.getForAxis = function(name, axis) {
-  var axisIdx;
-  var axisString;
+    
+    try {
 
-  // Since axis can be a number or a string, straighten everything out here.
-  if (typeof(axis) == 'number') {
-    axisIdx = axis;
-    axisString = axisIdx === 0 ? "y" : "y2";
-  } else {
-    if (axis == "y1") { axis = "y"; } // Standardize on 'y'. Is this bad? I think so.
-    if (axis == "y") {
-      axisIdx = 0;
-    } else if (axis == "y2") {
-      axisIdx = 1;
-    } else if (axis == "x") {
-      axisIdx = -1; // simply a placeholder for below.
-    } else {
-      throw "Unknown axis " + axis;
+        var axisIdx;
+        var axisString;
+
+        // Since axis can be a number or a string, straighten everything out here.
+        if (typeof (axis) == 'number') {
+            axisIdx = axis;
+            axisString = axisIdx === 0 ? "y" : "y2";
+        } else {
+            if (axis == "y1") { axis = "y"; } // Standardize on 'y'. Is this bad? I think so.
+            if (axis == "y") {
+                axisIdx = 0;
+            } else if (axis == "y2") {
+                axisIdx = 1;
+            } else if (axis == "x") {
+                axisIdx = -1; // simply a placeholder for below.
+            } else {
+                throw "Unknown axis " + axis;
+            }
+            axisString = axis;
+        }
+
+        var userAxis = (axisIdx == -1) ? this.xAxis_ : this.yAxes_[axisIdx];
+
+        // Search the user-specified axis option first.
+        if (userAxis) { // This condition could be removed if we always set up this.yAxes_ for y2.
+            var axisOptions = userAxis.options;
+            if (axisOptions.hasOwnProperty(name)) {
+                return axisOptions[name];
+            }
+        }
+
+        // User-specified global options second.
+        // But, hack, ignore globally-specified 'logscale' for 'x' axis declaration.
+        if (!(axis === 'x' && name === 'logscale')) {
+            var result = this.getGlobalUser_(name);
+            if (result !== null) {
+                return result;
+            }
+        }
+        // Default axis options third.
+        var defaultAxisOptions = Dygraph.DEFAULT_ATTRS.axes[axisString];
+        if (defaultAxisOptions.hasOwnProperty(name)) {
+            return defaultAxisOptions[name];
+        }
+
+        // Default global options last.
+        return this.getGlobalDefault_(name);
+
+    } catch (exception) {
+        console.log(exception);
     }
-    axisString = axis;
-  }
 
-  var userAxis = (axisIdx == -1) ? this.xAxis_ : this.yAxes_[axisIdx];
-
-  // Search the user-specified axis option first.
-  if (userAxis) { // This condition could be removed if we always set up this.yAxes_ for y2.
-    var axisOptions = userAxis.options;
-    if (axisOptions.hasOwnProperty(name)) {
-      return axisOptions[name];
-    }
-  }
-
-  // User-specified global options second.
-  // But, hack, ignore globally-specified 'logscale' for 'x' axis declaration.
-  if (!(axis === 'x' && name === 'logscale')) {
-    var result = this.getGlobalUser_(name);
-    if (result !== null) {
-      return result;
-    }
-  }
-  // Default axis options third.
-  var defaultAxisOptions = Dygraph.DEFAULT_ATTRS.axes[axisString];
-  if (defaultAxisOptions.hasOwnProperty(name)) {
-    return defaultAxisOptions[name];
-  }
-
-  // Default global options last.
-  return this.getGlobalDefault_(name);
 };
 
 /**
@@ -3285,37 +3293,45 @@ Dygraph.prototype.createMouseEventElement_ = function() {
  * @private
  */
 Dygraph.prototype.setColors_ = function() {
-  var labels = this.getLabels();
-  var num = labels.length - 1;
-  this.colors_ = [];
-  this.colorsMap_ = {};
 
-  // These are used for when no custom colors are specified.
-  var sat = this.getNumericOption('colorSaturation') || 1.0;
-  var val = this.getNumericOption('colorValue') || 0.5;
-  var half = Math.ceil(num / 2);
+    try {
 
-  var colors = this.getOption('colors');
-  var visibility = this.visibility();
-  for (var i = 0; i < num; i++) {
-    if (!visibility[i]) {
-      continue;
+        var labels = this.getLabels();
+        var num = labels.length - 1;
+        this.colors_ = [];
+        this.colorsMap_ = {};
+
+        // These are used for when no custom colors are specified.
+        var sat = this.getNumericOption('colorSaturation') || 1.0;
+        var val = this.getNumericOption('colorValue') || 0.5;
+        var half = Math.ceil(num / 2);
+
+        var colors = this.getOption('colors');
+        var visibility = this.visibility();
+        for (var i = 0; i < num; i++) {
+            if (!visibility[i]) {
+                continue;
+            }
+            var label = labels[i + 1];
+            var colorStr = this.attributes_.getForSeries('color', label);
+            if (!colorStr) {
+                if (colors) {
+                    colorStr = colors[i % colors.length];
+                } else {
+                    // alternate colors for high contrast.
+                    var idx = i % 2 ? (half + (i + 1) / 2) : Math.ceil((i + 1) / 2);
+                    var hue = (1.0 * idx / (1 + num));
+                    colorStr = Dygraph.hsvToRGB(hue, sat, val);
+                }
+            }
+            this.colors_.push(colorStr);
+            this.colorsMap_[label] = colorStr;
+        }
+
+    } catch (exception) {
+        console.log(exception);
     }
-    var label = labels[i + 1];
-    var colorStr = this.attributes_.getForSeries('color', label);
-    if (!colorStr) {
-      if (colors) {
-        colorStr = colors[i % colors.length];
-      } else {
-        // alternate colors for high contrast.
-        var idx = i % 2 ? (half + (i + 1)/ 2) : Math.ceil((i + 1) / 2);
-        var hue = (1.0 * idx / (1 + num));
-        colorStr = Dygraph.hsvToRGB(hue, sat, val);
-      }
-    }
-    this.colors_.push(colorStr);
-    this.colorsMap_[label] = colorStr;
-  }
+
 };
 
 /**
@@ -3664,88 +3680,96 @@ Dygraph.zoomAnimationFunction = function(frame, numFrames) {
  * double-clicking on the graph.
  */
 Dygraph.prototype.resetZoom = function() {
-  var dirty = false, dirtyX = false, dirtyY = false;
-  if (this.dateWindow_ !== null) {
-    dirty = true;
-    dirtyX = true;
-  }
 
-  for (var i = 0; i < this.axes_.length; i++) {
-    if (typeof(this.axes_[i].valueWindow) !== 'undefined' && this.axes_[i].valueWindow !== null) {
-      dirty = true;
-      dirtyY = true;
-    }
-  }
+    try {
 
-  // Clear any selection, since it's likely to be drawn in the wrong place.
-  this.clearSelection();
-
-  if (dirty) {
-    this.zoomed_x_ = false;
-    this.zoomed_y_ = false;
-
-    var minDate = this.rawData_[0][0];
-    var maxDate = this.rawData_[this.rawData_.length - 1][0];
-
-    // With only one frame, don't bother calculating extreme ranges.
-    // TODO(danvk): merge this block w/ the code below.
-    if (!this.getBooleanOption("animatedZooms")) {
-      this.dateWindow_ = null;
-      for (i = 0; i < this.axes_.length; i++) {
-        if (this.axes_[i].valueWindow !== null) {
-          delete this.axes_[i].valueWindow;
+        var dirty = false, dirtyX = false, dirtyY = false;
+        if (this.dateWindow_ !== null) {
+            dirty = true;
+            dirtyX = true;
         }
-      }
-      this.drawGraph_();
-      if (this.getFunctionOption("zoomCallback")) {
-        this.getFunctionOption("zoomCallback").call(this,
-            minDate, maxDate, this.yAxisRanges());
-      }
-      return;
-    }
 
-    var oldWindow=null, newWindow=null, oldValueRanges=null, newValueRanges=null;
-    if (dirtyX) {
-      oldWindow = this.xAxisRange();
-      newWindow = [minDate, maxDate];
-    }
-
-    if (dirtyY) {
-      oldValueRanges = this.yAxisRanges();
-      // TODO(danvk): this is pretty inefficient
-      var packed = this.gatherDatasets_(this.rolledSeries_, null);
-      var extremes = packed.extremes;
-
-      // this has the side-effect of modifying this.axes_.
-      // this doesn't make much sense in this context, but it's convenient (we
-      // need this.axes_[*].extremeValues) and not harmful since we'll be
-      // calling drawGraph_ shortly, which clobbers these values.
-      this.computeYAxisRanges_(extremes);
-
-      newValueRanges = [];
-      for (i = 0; i < this.axes_.length; i++) {
-        var axis = this.axes_[i];
-        newValueRanges.push((axis.valueRange !== null &&
-                             axis.valueRange !== undefined) ?
-                            axis.valueRange : axis.extremeRange);
-      }
-    }
-
-    var that = this;
-    this.doAnimatedZoom(oldWindow, newWindow, oldValueRanges, newValueRanges,
-        function() {
-          that.dateWindow_ = null;
-          for (var i = 0; i < that.axes_.length; i++) {
-            if (that.axes_[i].valueWindow !== null) {
-              delete that.axes_[i].valueWindow;
+        for (var i = 0; i < this.axes_.length; i++) {
+            if (typeof (this.axes_[i].valueWindow) !== 'undefined' && this.axes_[i].valueWindow !== null) {
+                dirty = true;
+                dirtyY = true;
             }
-          }
-          if (that.getFunctionOption("zoomCallback")) {
-            that.getFunctionOption("zoomCallback").call(that,
-                minDate, maxDate, that.yAxisRanges());
-          }
-        });
-  }
+        }
+
+        // Clear any selection, since it's likely to be drawn in the wrong place.
+        this.clearSelection();
+
+        if (dirty) {
+            this.zoomed_x_ = false;
+            this.zoomed_y_ = false;
+
+            var minDate = this.rawData_[0][0];
+            var maxDate = this.rawData_[this.rawData_.length - 1][0];
+
+            // With only one frame, don't bother calculating extreme ranges.
+            // TODO(danvk): merge this block w/ the code below.
+            if (!this.getBooleanOption("animatedZooms")) {
+                this.dateWindow_ = null;
+                for (i = 0; i < this.axes_.length; i++) {
+                    if (this.axes_[i].valueWindow !== null) {
+                        delete this.axes_[i].valueWindow;
+                    }
+                }
+                this.drawGraph_();
+                if (this.getFunctionOption("zoomCallback")) {
+                    this.getFunctionOption("zoomCallback").call(this,
+                        minDate, maxDate, this.yAxisRanges());
+                }
+                return;
+            }
+
+            var oldWindow = null, newWindow = null, oldValueRanges = null, newValueRanges = null;
+            if (dirtyX) {
+                oldWindow = this.xAxisRange();
+                newWindow = [minDate, maxDate];
+            }
+
+            if (dirtyY) {
+                oldValueRanges = this.yAxisRanges();
+                // TODO(danvk): this is pretty inefficient
+                var packed = this.gatherDatasets_(this.rolledSeries_, null);
+                var extremes = packed.extremes;
+
+                // this has the side-effect of modifying this.axes_.
+                // this doesn't make much sense in this context, but it's convenient (we
+                // need this.axes_[*].extremeValues) and not harmful since we'll be
+                // calling drawGraph_ shortly, which clobbers these values.
+                this.computeYAxisRanges_(extremes);
+
+                newValueRanges = [];
+                for (i = 0; i < this.axes_.length; i++) {
+                    var axis = this.axes_[i];
+                    newValueRanges.push((axis.valueRange !== null &&
+                                         axis.valueRange !== undefined) ?
+                                        axis.valueRange : axis.extremeRange);
+                }
+            }
+
+            var that = this;
+            this.doAnimatedZoom(oldWindow, newWindow, oldValueRanges, newValueRanges,
+                function () {
+                    that.dateWindow_ = null;
+                    for (var i = 0; i < that.axes_.length; i++) {
+                        if (that.axes_[i].valueWindow !== null) {
+                            delete that.axes_[i].valueWindow;
+                        }
+                    }
+                    if (that.getFunctionOption("zoomCallback")) {
+                        that.getFunctionOption("zoomCallback").call(that,
+                            minDate, maxDate, that.yAxisRanges());
+                    }
+                });
+        }
+
+    } catch (exception) {
+        console.log(exception);
+    }
+
 };
 
 /**
@@ -4618,50 +4642,56 @@ Dygraph.prototype.gatherDatasets_ = function(rolledSeries, dateWindow) {
  * @private
  */
 Dygraph.prototype.drawGraph_ = function() {
-  var start = new Date();
 
-  // This is used to set the second parameter to drawCallback, below.
-  var is_initial_draw = this.is_initial_draw_;
-  this.is_initial_draw_ = false;
+    try {
+        var start = new Date();
 
-  this.layout_.removeAllDatasets();
-  this.setColors_();
-  this.attrs_.pointSize = 0.5 * this.getNumericOption('highlightCircleSize');
+        // This is used to set the second parameter to drawCallback, below.
+        var is_initial_draw = this.is_initial_draw_;
+        this.is_initial_draw_ = false;
 
-  var packed = this.gatherDatasets_(this.rolledSeries_, this.dateWindow_);
-  var points = packed.points;
-  var extremes = packed.extremes;
-  this.boundaryIds_ = packed.boundaryIds;
+        this.layout_.removeAllDatasets();
+        this.setColors_();
+        this.attrs_.pointSize = 0.5 * this.getNumericOption('highlightCircleSize');
 
-  this.setIndexByName_ = {};
-  var labels = this.attr_("labels");
-  if (labels.length > 0) {
-    this.setIndexByName_[labels[0]] = 0;
-  }
-  var dataIdx = 0;
-  for (var i = 1; i < points.length; i++) {
-    this.setIndexByName_[labels[i]] = i;
-    if (!this.visibility()[i - 1]) continue;
-    this.layout_.addDataset(labels[i], points[i]);
-    this.datasetIndex_[i] = dataIdx++;
-  }
+        var packed = this.gatherDatasets_(this.rolledSeries_, this.dateWindow_);
+        var points = packed.points;
+        var extremes = packed.extremes;
+        this.boundaryIds_ = packed.boundaryIds;
 
-  this.computeYAxisRanges_(extremes);
-  this.layout_.setYAxes(this.axes_);
+        this.setIndexByName_ = {};
+        var labels = this.attr_("labels");
+        if (labels.length > 0) {
+            this.setIndexByName_[labels[0]] = 0;
+        }
+        var dataIdx = 0;
+        for (var i = 1; i < points.length; i++) {
+            this.setIndexByName_[labels[i]] = i;
+            if (!this.visibility()[i - 1]) continue;
+            this.layout_.addDataset(labels[i], points[i]);
+            this.datasetIndex_[i] = dataIdx++;
+        }
 
-  this.addXTicks_();
+        this.computeYAxisRanges_(extremes);
+        this.layout_.setYAxes(this.axes_);
 
-  // Save the X axis zoomed status as the updateOptions call will tend to set it erroneously
-  var tmp_zoomed_x = this.zoomed_x_;
-  // Tell PlotKit to use this new data and render itself
-  this.zoomed_x_ = tmp_zoomed_x;
-  this.layout_.evaluate();
-  this.renderGraph_(is_initial_draw);
+        this.addXTicks_();
 
-  if (this.getStringOption("timingName")) {
-    var end = new Date();
-    console.log(this.getStringOption("timingName") + " - drawGraph: " + (end - start) + "ms");
-  }
+        // Save the X axis zoomed status as the updateOptions call will tend to set it erroneously
+        var tmp_zoomed_x = this.zoomed_x_;
+        // Tell PlotKit to use this new data and render itself
+        this.zoomed_x_ = tmp_zoomed_x;
+        this.layout_.evaluate();
+        this.renderGraph_(is_initial_draw);
+
+        if (this.getStringOption("timingName")) {
+            var end = new Date();
+            console.log(this.getStringOption("timingName") + " - drawGraph: " + (end - start) + "ms");
+        }
+    } catch (exception) {
+        console.log(exception);
+    }
+
 };
 
 /**
@@ -5461,56 +5491,64 @@ Dygraph.prototype.start_ = function() {
  *     callback).
  */
 Dygraph.prototype.updateOptions = function(input_attrs, block_redraw) {
-  if (typeof(block_redraw) == 'undefined') block_redraw = false;
 
-  // mapLegacyOptions_ drops the "file" parameter as a convenience to us.
-  var file = input_attrs.file;
-  var attrs = Dygraph.mapLegacyOptions_(input_attrs);
+    try {
 
-  // TODO(danvk): this is a mess. Move these options into attr_.
-  if ('rollPeriod' in attrs) {
-    this.rollPeriod_ = attrs.rollPeriod;
-  }
-  if ('dateWindow' in attrs) {
-    this.dateWindow_ = attrs.dateWindow;
-    if (!('isZoomedIgnoreProgrammaticZoom' in attrs)) {
-      this.zoomed_x_ = (attrs.dateWindow !== null);
+        if (typeof (block_redraw) == 'undefined') block_redraw = false;
+
+        // mapLegacyOptions_ drops the "file" parameter as a convenience to us.
+        var file = input_attrs.file;
+        var attrs = Dygraph.mapLegacyOptions_(input_attrs);
+
+        // TODO(danvk): this is a mess. Move these options into attr_.
+        if ('rollPeriod' in attrs) {
+            this.rollPeriod_ = attrs.rollPeriod;
+        }
+        if ('dateWindow' in attrs) {
+            this.dateWindow_ = attrs.dateWindow;
+            if (!('isZoomedIgnoreProgrammaticZoom' in attrs)) {
+                this.zoomed_x_ = (attrs.dateWindow !== null);
+            }
+        }
+        if ('valueRange' in attrs && !('isZoomedIgnoreProgrammaticZoom' in attrs)) {
+            this.zoomed_y_ = (attrs.valueRange !== null);
+        }
+
+        // TODO(danvk): validate per-series options.
+        // Supported:
+        // strokeWidth
+        // pointSize
+        // drawPoints
+        // highlightCircleSize
+
+        // Check if this set options will require new points.
+        var requiresNewPoints = Dygraph.isPixelChangingOptionList(this.attr_("labels"), attrs);
+
+        Dygraph.updateDeep(this.user_attrs_, attrs);
+
+        this.attributes_.reparseSeries();
+
+        if (file) {
+            // This event indicates that the data is about to change, but hasn't yet.
+            // TODO(danvk): support cancelation of the update via this event.
+            this.cascadeEvents_('dataWillUpdate', {});
+
+            this.file_ = file;
+            if (!block_redraw) this.start_();
+        } else {
+            if (!block_redraw) {
+                if (requiresNewPoints) {
+                    this.predraw_();
+                } else {
+                    this.renderGraph_(false);
+                }
+            }
+        }
+
+    } catch (exception) {
+        console.log(exception);
     }
-  }
-  if ('valueRange' in attrs && !('isZoomedIgnoreProgrammaticZoom' in attrs)) {
-    this.zoomed_y_ = (attrs.valueRange !== null);
-  }
 
-  // TODO(danvk): validate per-series options.
-  // Supported:
-  // strokeWidth
-  // pointSize
-  // drawPoints
-  // highlightCircleSize
-
-  // Check if this set options will require new points.
-  var requiresNewPoints = Dygraph.isPixelChangingOptionList(this.attr_("labels"), attrs);
-
-  Dygraph.updateDeep(this.user_attrs_, attrs);
-
-  this.attributes_.reparseSeries();
-
-  if (file) {
-    // This event indicates that the data is about to change, but hasn't yet.
-    // TODO(danvk): support cancelation of the update via this event.
-    this.cascadeEvents_('dataWillUpdate', {});
-
-    this.file_ = file;
-    if (!block_redraw) this.start_();
-  } else {
-    if (!block_redraw) {
-      if (requiresNewPoints) {
-        this.predraw_();
-      } else {
-        this.renderGraph_(false);
-      }
-    }
-  }
 };
 
 /**
@@ -9770,46 +9808,47 @@ rangeSelector.prototype.createZoomHandles_ = function() {
     img.style.backgroundColor = 'white';
     img.style.border = '1px solid #333333'; // Just show box in IE7.
   } else {
-    img.width = 9;
-    img.height = 16;
+    img.width = 32;
+    img.height = 32;
     img.src = 'data:image/png;base64,' +
-	'iVBORw0KGgoAAAANSUhEUgAAACUAAAAyCAYAAADbTRIgAAAABGdBTUEAALGPC/xhBQAAAAlwSFlz' +
-	'AAAOwgAADsIBFShKgAAAABh0RVh0U29mdHdhcmUAcGFpbnQubmV0IDQuMC45bDN+TgAABjVJREFU' +
-	'WEe9182OXdURxXGepUf9SGAG8CYg3gHEMEh4yMczEMVOMrCiDIgUsGi37Xa3PxIrIAsjoZP7O+3/' +
-	'6brXrQwi2S2Vd+2qVatW7X3OvdfvLMuyZ7s//7w1O+zP9je77dnZ2WoPHz5cHj16tK73799fLi4u' +
-	'lsePHy8PHjxYTk5O1viMqeFb7dXGYw97fn6+nJ6errny14nbExQQASJi7JE9efJk9Wcz+RqJMb4c' +
-	'qzm/WvjyiWdT2CaIkIibqgIWsdVJIYyYybUmlk1O6717966tvVaURAIiqihCRDUKK2clpNrwk0tt' +
-	'GBwwE6dPwlZBqe4a7Cdh1ygWaTiTW8POWrgGE5vP0+RovydKQAJggvksP8KwkZWbwhgx4fhw8hM7' +
-	'8XuimkZiXgO/5yeycPZdHUs8fDHW6cDPPkzN5NOPnlWUZHc875nvNbeGSWCiNEUm3kA1PBSZgDAJ' +
-	'tdqzTRRiz4a1Qg1qHmnE1ghrUqzPquLhs5rHS/zEbaIEIiKmk2H24p1UpAjUyDsNeYK67prFa20I' +
-	'BhvGGm4TJZhSja2adTVTsFxENbNvMPXztMTjkLM/vJVZu4lCojCANXFWpqiJYJCyGhW3h/MN0LD4' +
-	'+Pjg5hDVldtEKSAqYYinSP7du3fXvSkVJ5TNhtW4Rr6YHI4EFpv1+ZsoQAmNKnIK1inUWnz6TEMc' +
-	'1ik4ITWOn6hiU+CeKDaBmdjhVJrOeGL6dOcTbJWPmyWKGZiFYZuoErNJPqBmGohHOvezeXv18sXD' +
-	'MPFOU65e+myiAgMQOEHFE4o8i3jWiPe627NyeJxgPB1Gb6vYJgpBp6FRzaaQSBlffE4cJn8OyBfL' +
-	'nzw45BiuTVTgBJimD8EINMgPOwcQg+ebPK6EsimKj5OohofZRFUQgCG+uDhdbn367nJ8/N5y8x+X' +
-	'VxJhpO1xlD8Uwf/7F3jeXT7/69WD3RrOuolCNqe6fNV/Wm5/9v5yfHS0HO3s4z9eTq4YHs4+wvze' +
-	'QGsi8X330SXP0fH7y2d/Plk/XA0eZwI3UTYMANH5+b09Qauo2/uvdEff9UUK07VmYrc/vuI6Or6x' +
-	'fPqnyw/jaqvfRKXWRAT95fN9QW/EXp2Yng1D2CaqaYj72x9uvHlB2U7Yl99f9u6qN1H990nwn199' +
-	'8BZFfbB8/cPVd6J1E2VDlPXnly+WH29++Bau78Pl5o8vll+fX/2C3TspgT69Ly7+vfxyjbBP7vhN' +
-	'////3fnkdUEvf3669vTSOBDXuImiVKLPnbOzZ8uL3/aF9fZFkt/Kuob2fM8K/1Zv3yboyZoPQwPc' +
-	'Jsqmh82K/Pz8X1cntiP65uTql6KThWsIlrge2Inln357yZOg8vB4qt1EFQTKX4lOHy//+fX33eH/' +
-	'vrv7q1+jDaEhn6lrKOZrSlyMPX/F8/KXZ2ufyaVXdZuoQKwJgIsldFo5De3nMMh7cFn+bA5bXhwP' +
-	'fxPl415gkorVkImVE4+Y31dLxK3xxNHQRMbdMDjYJgqB4waYp4O05hlS+EyDRDEYMTg+HvHJ1Z5v' +
-	'JdwqvomSbHpkRAEg1KDCMPBwTQsrL5Z1tQRXl8HXI3y5PVEBrDVjgK3l7TuBnhf7xPBhpph4w7Pi' +
-	'6sJuolKNCOBQTCJqap/JHw5REzVWNcR06gkJ3xBim6iIZjJfbv4KFWOuRa7rqY7fKRAhJofv8FSq' +
-	'4zO5TZTE/zopVr61/HXPTDknxMrzD3HzBcO9JwpAEIGHdr7KhCaWPX36dCVqarFOc9ZYO9Hwcyi1' +
-	'9r19fq1sohQAZBWKR8YUisvbh4WRY9XWOD9zpZ2K+uJp2EQlBlizpmNi89j7aEBqn4+4/aHgBDA4' +
-	'+x56ljD5TdQkBW7y4p2WfQ0jJVieiYWHle87sLhVfXzM3krL7o+mS1FNAdx6KIxPBKyceHkmVjzM' +
-	'5OBPQdO3bqJeKVuLJAC7xq7usElEkcnDJYDNmNqGEvcIdGosjtdESZSseK5yrifMbJZYuLAwcjCs' +
-	'+CE2fgPsiUrYFKIQif18Vpow8poirWk8Xpiw1cdbHZ8laE/UutltE4KkZoj63CIwS1Rixabo1vjk' +
-	'Ej8xU9CqY27WwC7EElRDfpaYmjF+e/kM/hAjXh/2mobDQDaL3oQd9ruy5Z3/ApFos546Ao/aAAAA' +
-	'AElFTkSuQmCC';
+    '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' +
+    'AElFTkSuQmCC';
   }
 
-  if (this.isMobileDevice_) {
-    img.width *= 2;
-    img.height *= 2;
-  }
+  // removed due to augmented image width and height 
+  //if (this.isMobileDevice_) {
+  //  img.width *= 2;
+  //  img.height *= 2;
+  //}
 
   this.leftZoomHandle_ = img;
   this.rightZoomHandle_ = img.cloneNode(false);
