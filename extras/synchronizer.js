@@ -116,18 +116,19 @@ Dygraph.synchronize = function(/* dygraphs..., opts */) {
  
   return {
     detach: function() {
-      for (var i = 0; i < dygraphs.length; i++) {
-        var g = dygraphs[i];
-        if (opts.zoom) {
-          g.updateOptions({drawCallback: prevCallbacks.draw});
-        }
-        if (opts.selection) {
-          g.updateOptions({
-            highlightCallback: prevCallbacks.highlight,
-            unhighlightCallback: prevCallbacks.unhighlight
-          });
-        }
-      }
+		if (dygraphs !== null)
+              for (var i = 0; i < dygraphs.length; i++) {
+                var g = dygraphs[i];
+                if (opts.zoom) {
+                  g.updateOptions({drawCallback: prevCallbacks.draw});
+                }
+                if (opts.selection) {
+                  g.updateOptions({
+                    highlightCallback: prevCallbacks.highlight,
+                    unhighlightCallback: prevCallbacks.unhighlight
+                  });
+                }
+              }
       // release references & make subsequent calls throw.
       dygraphs = null;
       opts = null;
