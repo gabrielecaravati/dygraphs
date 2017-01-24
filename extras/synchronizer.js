@@ -33,7 +33,7 @@
 'use strict';
 
 Dygraph.synchronize = function(/* dygraphs..., opts */) {
-  if (arguments === null) {
+  if (typeof arguments === "undefined" || arguments === null) {
     return;
   }
   if (arguments.length === 0) {
