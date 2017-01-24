@@ -33,6 +33,9 @@
 'use strict';
 
 Dygraph.synchronize = function(/* dygraphs..., opts */) {
+  if (arguments === null) {
+    return;
+  }
   if (arguments.length === 0) {
     throw 'Invalid invocation of Dygraph.synchronize(). Need >= 1 argument.';
   }
