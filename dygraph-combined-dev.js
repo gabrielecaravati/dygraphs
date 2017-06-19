@@ -6573,7 +6573,8 @@ Dygraph.getContextPixelRatio = function(context) {
  * @private
  */
 Dygraph.isAndroid = function() {
-  return (/Android/).test(navigator.userAgent);
+  //removed for chrome mobile compatibility
+  return false;//return (/Android/).test(navigator.userAgent);
 };
 
 
